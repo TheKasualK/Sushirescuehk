@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feeding HK: The Sushi Rescue</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap');
+        
+        body { 
+            font-family: 'Outfit', sans-serif; 
+            background-color: #f1f5f9; 
+            min-height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 1rem; 
+            color: #1e293b; 
+            overflow-x: hidden; 
+        }
+
+        .main-card { 
+            background: #ffffff; 
+            border: 1px solid #e2e8f0; 
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+        }
+
+        .timer-warning { 
+            color: #ef4444; 
+            animation: pulse-red 1s infinite; 
+        }
+
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        #progress-bar-inner { 
+            transition: width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+        }
+
+        .choice-btn { 
+            transition: all 0.2s; 
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            color: #334155;
+        }
+
+        .choice-btn:hover { 
+            background: #ffffff; 
+            border-color: #3b82f6; 
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        }
+
+        #tutorial-overlay {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body id="game-body">
+
+    <div id="game-container" class="max-w-xl w-full main-card rounded-[2.5rem] p-6 md:p-10 relative overflow-hidden">
+        
+        <!-- HUD -->
+        <div id="hud" class="hidden mb-8">
+            <div class="flex justify-between items-start">
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                        <p id="stage-text" class="text-xs font-black text-slate-400 uppercase tracking-widest">Stage 01/30</p>
+                    </div>
+                    <h3 id="mode-display" class="text-2xl font-black text-slate-800 tracking-tight uppercase">LOGISTICS</h3>
+                </div>
+                <div class="text-right">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Time Buffer</p>
+                    <div id="timer" class="text-4xl font-black text-slate-900 tabular-nums leading-none">280:00</div>
+                </div>
+            </div>
+            <div class="w-full bg-slate-100 h-2 rounded-full mt-6 overflow-hidden">
+                <div id="progress-bar-inner" class="bg-blue-600 h-full w-0"></div>
+            </div>
+        </div>
+
+        <div id="screen-content">
+            <!-- START SCREEN -->
+            <div id="start-screen" class="text-center py-4">
+                <div class="w-20 h-20 bg-blue-50 text-4xl flex items-center justify-center rounded-3xl mx-auto mb-6">🏙️</div>
+                <h1 class="text-4xl font-black mb-3 text-slate-900 tracking-tight">Feeding HK</h1>
+                <p class="text-slate-500 mb-10 text-base leading-relaxed">High-stakes food rescue operations.</p>
+                
+                <div class="space-y-4">
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Select Vehicle</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button onclick="showTutorial('van')" class="p-6 bg-slate-50 border border-slate-100 rounded-3xl hover:border-blue-300 hover:bg-white transition-all group">
+                            <span class="text-4xl block mb-3">🚚</span>
+                            <span class="text-xs font-black uppercase text-slate-600 group-hover:text-blue-600">Logistics Van</span>
+                        </button>
+                        <button onclick="showTutorial('truck')" class="p-6 bg-slate-50 border border-slate-100 rounded-3xl hover:border-blue-300 hover:bg-white transition-all group">
+                            <span class="text-4xl block mb-3">❄️</span>
+                            <span class="text-xs font-black uppercase text-slate-600 group-hover:text-blue-600">Chiller Truck</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ACTION SCREEN -->
+            <div id="choice-screen" class="hidden">
+                <div class="min-h-[120px] flex items-center justify-center mb-8 bg-slate-50 rounded-3xl p-6 border border-slate-100">
+                    <h2 id="scenario-desc" class="text-lg font-bold text-center text-slate-700 leading-snug"></h2>
+                </div>
+                <div id="choice-buttons" class="grid grid-cols-1 gap-4 pb-4"></div>
+            </div>
+
+            <!-- RESULT SCREEN -->
+            <div id="result-screen" class="hidden text-center py-4">
+                <div id="result-icon" class="text-8xl mb-6"></div>
+                <h2 id="result-title" class="text-4xl font-black mb-3 text-slate-900 uppercase tracking-tighter"></h2>
+                <p id="result-desc" class="text-slate-500 mb-10 text-lg px-2"></p>
+                
+                <div class="bg-slate-50 border border-slate-200 rounded-[2rem] p-8 mb-10">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2">Final Time Remaining</p>
+                    <p id="final-buffer" class="text-6xl font-black text-slate-900"></p>
+                </div>
+                
+                <button onclick="resetGame()" class="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all uppercase tracking-widest">Restart Mission</button>
+            </div>
+        </div>
+
+        <!-- TUTORIAL OVERLAY -->
+        <div id="tutorial-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-[2rem] max-w-sm w-full p-8 text-center shadow-2xl">
+                <div id="tut-icon" class="text-5xl mb-4">🚚</div>
+                <h2 id="tut-title" class="text-2xl font-black text-slate-900 mb-2">Tutorial</h2>
+                <div id="tut-body" class="text-slate-600 text-sm mb-8 space-y-3 text-left"></div>
+                <button onclick="startGameAfterTutorial()" class="w-full bg-blue-600 text-white font-black py-4 rounded-xl hover:bg-blue-700 transition-all uppercase tracking-widest text-sm">Got it, Let's Go!</button>
+            </div>
+        </div>
+
+        <!-- DEV PANEL -->
+        <div id="dev-panel" class="hidden p-4 bg-white border-t border-slate-200 fixed bottom-0 left-0 w-full flex justify-center gap-4 text-xs font-bold">
+            <button onclick="secondsLeft += 600; updateTimerDisplay()" class="bg-slate-100 px-4 py-2 rounded-lg text-slate-600">+10m</button>
+            <button onclick="skipStage(5)" class="bg-slate-100 px-4 py-2 rounded-lg text-slate-600">Skip 5</button>
+            <button onclick="toggleDevMode(false)" class="text-red-500">Close Dev</button>
+        </div>
+    </div>
+
+    <script>
+        const STARTING_MINUTES = 280;
+        const TOTAL_STAGES = 30;
+        let secondsLeft = STARTING_MINUTES * 60;
+        let stageCount = 1;
+        let timerId = null;
+        let inputBuffer = "";
+        let currentStages = [];
+        let pendingMode = null;
+
+        const vanFatal = [
+            { q: "A narrow Mong Kok alley shortcut appears.", o1: "Main road", o2: "Take alley (Risk!)", fMsg: "Stuck! Blocked traffic for 4 hours." },
+            { q: "You see a bridge with 2.1m clearance.", o1: "Check height", o2: "Drive through (Van is 2.1 M)", fMsg: "Roof peeled off! Bridge strike." },
+            { q: "It's raining heavily; the road is slick.", o1: "Slow down", o2: "Maintain speed (Risk!)", fMsg: "Hydroplaned into a barrier!" },
+            { q: "GPS signal lost in the tunnel.", o1: "Wait for signal", o2: "Guess the exit blindly", fMsg: "Wrong way into a one-way street!" }
+        ];
+
+        const truckFatal = [
+            { q: "Cooling unit makes a strange buzzing sound.", o1: "Adjust settings", o2: "Kick the panel ", fMsg: "Unit failed! All food spoiled." },
+            { q: "Route includes a bridge with a 10-ton limit.", o1: "Detour", o2: "Cross bridge", fMsg: "Road collapsed under truck weight!" },
+            { q: "High winds on the Highway.", o1: "Reduce speed", o2: "Floor the accelerator", fMsg: "Blown over! High-sided vehicle risk." },
+            { q: "Cabin filling with Hot air from the back.", o1: "Inspect seals", o2: "Turn on AC", fMsg: "Massive leak! Cargo ruined." }
+        ];
+
+        const vanSafe = [
+            { q: "Traffic at Cross-Harbour Tunnel.", o1: "Wait it out", o2: "Go to EHC" },
+            { q: "Double-parked car in Quarry Bay.", o1: "Wait for driver", o2: "Mount curb" },
+            { q: "Steep hill in Mid-Levels.", o1: "Low gear", o2: "Accelerate (Risk!)" },
+            { q: "Delivery bike stops in front of you.", o1: "Brake", o2: "Honk horn" },
+            { q: "Tight turn in a housing estate.", o1: "Three-point turn", o2: "Reverse out" },
+            { q: "GPS suggests a route with many lights.", o1: "Follow GPS", o2: "Trust instinct" },
+            { q: "Pedestrian crossing with heavy bags.", o1: "Let them pass", o2: "Creep forward" },
+            { q: "Van side door isn't latched perfectly.", o1: "Stop and fix", o2: "Fix at next stop (Risk!)" },
+            { q: "Construction site narrows the road.", o1: "Wait for signal", o2: "Follow taxi" },
+            { q: "Radio reports protest in Central.", o1: "Reroute", o2: "Continue" },
+            { q: "Engine Oil levels starts blinking.", o1: "Buy oil at Gas station", o2: "Finish route first" },
+            { q: "Parking space is tiny and tight.", o1: "Parallel park", o2: "Find new spot" },
+            { q: "Sunset glare in Western District.", o1: "Sun visor", o2: "Squint (risk!)" },
+            { q: "Doner wants you to wait 5 mins.", o1: "Wait", o2: "Drop and go" },
+            { q: "Heavy rain in Admiralty.", o1: "Full wipers", o2: "Hazards on" },
+            { q: "Mini-bus cuts you off abruptly.", o1: "Hard brake", o2: "Swerve" },
+            { q: "Street food stall blocks the lane.", o1: "Ask to move", o2: "Wait" },
+            { q: "Windshield is getting foggy.", o1: "De-mist", o2: "Wipe by hand" },
+            { q: "Wrong turn at the flyover.", o1: "Recalculate", o2: "Continue" },
+            { q: "Brakes feel a little spongy.", o1: "Pump them", o2: "Shift lower" },
+            { q: "Feeling a bit hungry yourself.", o1: "Quick snack", o2: "Keep driving" },
+            { q: "Narrow street with many mirrors.", o1: "Fold mirrors", o2: "Slow Down" },
+            { q: "A cat runs under the van.", o1: "Emergency stop", o2: "Slow down" },
+            { q: "The GPS is static-heavy.", o1: "Change to mamual control", o2: "Turn off" },
+            { q: "Loose boxes in the back shifting.", o1: "Re-stack", o2: "Ignore" },
+            { q: "Tire pressure light comes on.", o1: "Check Now", o2: "Keep going" }
+        ];
+
+        const truckSafe = [
+            { q: "Temperature sensor reads +2°C higher.", o1: "Check seals", o2: "Override" },
+            { q: "Approaching a steep bridge incline.", o1: "Downshift", o2: "Power up" },
+            { q: "Toll booth lane looks very narrow.", o1: "Center truck", o2: "Wait for wide" },
+            { q: "Air brakes making a hissing sound.", o1: "Check pressure", o2: "Drain tank" },
+            { q: "Loading dock is busy at the mall.", o1: "Circle block", o2: "Wait in queue" },
+            { q: "Cargo shifts during a sharp turn.", o1: "Re-secure", o2: "Pedal Down And Drive" },
+            { q: "A/C seal alarm beeps.", o1: "Shut tight", o2: "Mute alarm" },
+            { q: "High winds on the bridge.", o1: "Slower speed", o2: "Hazards" },
+            { q: "Oil pressure gauge fluctuates.", o1: "Idle check", o2: "Note it" },
+            { q: "Truck stops in a cloud of diesel smoke.", o1: "Check exhaust", o2: "Rev engine" },
+            { q: "Pallet jack is acting up.", o1: "Manual lift", o2: "Grease wheels" },
+            { q: "GPS lost in the industrial park.", o1: "Check paper map", o2: "Drive till exit" },
+            { q: "Side mirror is slightly loose.", o1: "Tighten it", o2: "Ignore it" },
+            { q: "Refilling Deisel for truck.", o1: "Full tank", o2: "Half tank" },
+            { q: "Reversing into a dark warehouse.", o1: "Get help", o2: " Use Night-Vision camera" },
+            { q: "Cab interior is freezing cold.", o1: "Heater on", o2: "Coat on" },
+            { q: "Brake lights warning on dash.", o1: "Flicker check", o2: "Continue" },
+            { q: "Tire tread looks a bit worn.", o1: "Plan change", o2: "Keep going" },
+            { q: "Heavy traffic at the CHT.", o1: "Patience", o2: "Honk" },
+            { q: "Rain starting to pool on the roof.", o1: "Drain it", o2: "Speed up" },
+            { q: "Engine temp climbing on a hill.", o1: "Reduce revs", o2: "A/C On" },
+            { q: "Tailgate lift is slow today.", o1: "Wait for it", o2: "Nudge it" },
+            { q: "Forklift driver is in a rush.", o1: "Let them work", o2: "Speed them up" },
+            { q: "Night driving on the highway.", o1: "High beams", o2: "Low beams" },
+            { q: "Cooling unit vibrating the cab.", o1: "Adjust mounts", o2: "Ignore" },
+            { q: "Documentation for food is missing.", o1: "Call office", o2: "Sign anyway" }
+        ];
+
+        function showTutorial(mode) {
+            pendingMode = mode;
+            const overlay = document.getElementById('tutorial-overlay');
+            const icon = document.getElementById('tut-icon');
+            const body = document.getElementById('tut-body');
+            overlay.classList.remove('hidden');
+
+            if (mode === 'van') {
+                icon.innerText = "🚚";
+                body.innerHTML = `
+                    <p>• <b>Urban Agility:</b> Vans can handle tight streets, but beware of height limits!</p>
+                    <p>• <b class="text-red-600">Risks:</b> 4 "Fatal" urban traps. 26 scenarios are about traffic and navigation.</p>
+                    <p>• <b>Objective:</b> Finish 30 stops before the timer hits zero.</p>
+                `;
+            } else {
+                icon.innerText = "❄️";
+                body.innerHTML = `
+                    <p>• <b>Cold Chain:</b> Chiller Trucks must maintain strict temperatures for safety.</p>
+                    <p>• <b class="text-red-600">Risks:</b> 4 "Fatal" mechanical/weight failures. 26 scenarios focus on the truck's health.</p>
+                    <p>• <b>Objective:</b> Deliver all food safely within the time buffer.</p>
+                `;
+            }
+        }
+
+        function startGameAfterTutorial() {
+            document.getElementById('tutorial-overlay').classList.add('hidden');
+            selectTransport(pendingMode);
+        }
+
+        function generate30Stages(mode) {
+            const fatals = (mode === 'van') ? [...vanFatal] : [...truckFatal];
+            const safe = (mode === 'van') ? [...vanSafe] : [...truckSafe];
+            
+            let mixed = [];
+            const fatalIndices = [4, 11, 19, 27]; 
+            
+            let fIdx = 0;
+            let sIdx = 0;
+            for(let i=0; i<30; i++) {
+                let base;
+                let isFatal = false;
+                if (fatalIndices.includes(i)) {
+                    base = fatals[fIdx++];
+                    isFatal = true;
+                } else {
+                    base = safe[sIdx++];
+                }
+
+                const isSafeFirst = Math.random() > 0.5;
+                const opt1 = { t: base.o1, m: Math.floor(Math.random() * 3) + 8, fatal: false };
+                const opt2 = { t: base.o2, m: Math.floor(Math.random() * 3) + 1, fatal: isFatal, fMsg: base.fMsg || "" };
+
+                mixed.push({
+                    q: base.q,
+                    choices: isSafeFirst ? [opt1, opt2] : [opt2, opt1]
+                });
+            }
+            return mixed;
+        }
+
+        function selectTransport(mode) {
+            currentStages = generate30Stages(mode);
+            document.getElementById('mode-display').innerText = mode === 'van' ? 'Logistics Van' : 'Chiller Truck';
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            document.getElementById('choice-screen').classList.remove('hidden');
+            startTimer();
+            renderStage();
+        }
+
+        function renderStage() {
+            const data = currentStages[stageCount - 1];
+            document.getElementById('stage-text').innerText = `Stage ${stageCount < 10 ? '0'+stageCount : stageCount}/30`;
+            document.getElementById('scenario-desc').innerText = data.q;
+            document.getElementById('progress-bar-inner').style.width = `${(stageCount / TOTAL_STAGES) * 100}%`;
+            
+            const btnContainer = document.getElementById('choice-buttons');
+            btnContainer.innerHTML = '';
+            
+            data.choices.forEach(choice => {
+                const btn = document.createElement('button');
+                btn.className = "choice-btn w-full p-5 rounded-2xl font-bold text-left text-sm flex justify-between items-center";
+                btn.innerHTML = `<span>${choice.t}</span> <span class="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-[10px] font-black">+${choice.m} MIN</span>`;
+                btn.onclick = () => handleChoice(choice);
+                btnContainer.appendChild(btn);
+            });
+        }
+
+        function handleChoice(choice) {
+            if (choice.fatal) return endGame(false, choice.fMsg);
+            
+            secondsLeft -= (choice.m * 60);
+            updateTimerDisplay();
+            
+            if (secondsLeft <= 0) return endGame(false, "Out of time! The delivery failed.");
+            if (stageCount >= TOTAL_STAGES) return endGame(true, "All 30 stages complete! Food delivered.");
+            
+            stageCount++;
+            renderStage();
+        }
+
+        function startTimer() {
+            if (timerId) clearInterval(timerId);
+            timerId = setInterval(() => {
+                secondsLeft -= 1; 
+                updateTimerDisplay();
+                if (secondsLeft <= 0) endGame(false, "Time Expired.");
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const el = document.getElementById('timer');
+            const m = Math.max(0, Math.floor(secondsLeft / 60));
+            const s = Math.max(0, secondsLeft % 60);
+            el.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+            if (secondsLeft < 300) el.classList.add('timer-warning');
+            else el.classList.remove('timer-warning');
+        }
+
+        function endGame(success, msg) {
+            clearInterval(timerId);
+            document.getElementById('choice-screen').classList.add('hidden');
+            document.getElementById('hud').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            document.getElementById('result-icon').innerText = success ? "🏆" : "⚠️";
+            document.getElementById('result-title').innerText = success ? "Success" : "Failed";
+            document.getElementById('result-desc').innerText = msg;
+            
+            const m = Math.max(0, Math.floor(secondsLeft / 60));
+            const s = Math.max(0, secondsLeft % 60);
+            document.getElementById('final-buffer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+        }
+
+        function resetGame() {
+            secondsLeft = STARTING_MINUTES * 60;
+            stageCount = 1;
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
+            updateTimerDisplay();
+        }
+
+        function toggleDevMode(show) {
+            document.getElementById('dev-panel').classList.toggle('hidden', !show);
+        }
+
+        function skipStage(n) {
+            stageCount = Math.min(TOTAL_STAGES, stageCount + n);
+            renderStage();
+        }
+
+        window.addEventListener('keydown', (e) => {
+            inputBuffer += e.key.toLowerCase();
+            if (inputBuffer.includes("ollie")) { toggleDevMode(true); inputBuffer = ""; }
+        });
+    </script>
+</body>
+</html>
